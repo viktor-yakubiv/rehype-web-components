@@ -2,6 +2,7 @@
   "name": "rehype-web-components",
   "version": "0.0.1",
   "description": "A rehype plugin that simulates web components",
+  "type": "module",
   "main": "index.js",
   "keywords": [
     "rehype-plugin",
