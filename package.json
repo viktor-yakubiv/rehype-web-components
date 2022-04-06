@@ -8,5 +8,13 @@
     "web-components"
   ],
   "author": "Viktor Yakubiv (www.yakubiv.com)",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "lodash.clonedeep": "^4.5.0",
+    "rehype-format": "^4.0.1",
+    "rehype-parse": "^8.0.4",
+    "rehype-stringify": "^9.0.3",
+    "unified": "^10.1.2",
+    "unist-util-visit": "^4.1.0"
+  }
 }
