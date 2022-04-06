@@ -1,0 +1,12 @@
+{
+  "name": "rehype-web-components",
+  "version": "0.0.1",
+  "description": "A rehype plugin that simulates web components",
+  "main": "index.js",
+  "keywords": [
+    "rehype-plugin",
+    "web-components"
+  ],
+  "author": "Viktor Yakubiv (www.yakubiv.com)",
+  "license": "MIT"
+}
