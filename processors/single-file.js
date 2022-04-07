@@ -8,6 +8,7 @@ import formatter from 'rehype-format'
 import stringifier from 'rehype-stringify'
 import Template from './template.js'
 import Script from './script.js'
+import Style from './style.js'
 
 const split = nodeList => {
   const sortedNodes = [[], [], []]
@@ -45,16 +46,22 @@ const parse = text => {
 
 const load = async (filePath) => {
   const fileContents = await fs.readFile(filePath)
-  const { setupScript, templateNodes } = parse(fileContents)
+  const { setupScript, templateNodes, styleNodes } = parse(fileContents)
 
-  const template = new Template(templateNodes)
   const setup = new Script(setupScript)
+  const template = new Template(templateNodes)
+  const styles = styleNodes.map(node => new Style(node))
 
   const component = async (hostTree, index, parent) => {
     const preparedTree = await setup.run(hostTree)
-    console.log(hostTree.properties)
     const shadowTree = await template.render(preparedTree ?? hostTree)
-    return shadowTree.children
+
+    let styledTree = shadowTree
+    for (const style of styles) {
+      styledTree = await style.apply(styledTree) ?? styledTree
+    }
+
+    return styledTree.children
   }
 
   return component
