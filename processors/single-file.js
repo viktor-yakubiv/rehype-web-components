@@ -61,7 +61,7 @@ const load = async (filePath) => {
       styledTree = await style.apply(styledTree) ?? styledTree
     }
 
-    return styledTree.children
+    return [...styles.map(s => s.resultNode), ...styledTree.children]
   }
 
   return component
