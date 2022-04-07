@@ -1,127 +1,65 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import clone from 'lodash.clonedeep'
+import memoize from 'lodash.memoize'
 import { unified } from 'unified'
 import { visit } from 'unist-util-visit'
 import parser from 'rehype-parse'
 import formatter from 'rehype-format'
 import stringifier from 'rehype-stringify'
+import { html as loadHtmlComponent } from './loaders/index.js'
 
-const DEFAULT_SLOT = Symbol('default')
+const loadComponent = memoize(loadHtmlComponent)
 
-const loadComponents = async (dirPath, cacheMap) => {
-  const files = await fs.readdir(dirPath)
-  const components = await files
-    .filter(fileName => /\.html$/.test(fileName))
-    .map(fileName => {
-      const componentName = path.basename(fileName, '.html')
-      return [componentName, path.join(dirPath, fileName)]
-    })
-    .map(([componentName, filePath]) => {
-      return loadComponentFile(filePath)
-        .then(component => cacheMap.set(componentName, component))
-    })
-  return Promise.allSettled(components)
+const indexComponents = async (...paths) => {
+  const files = (await Promise.all(paths.map(async dirPath => {
+    const fileNames = await fs.readdir(dirPath)
+    const fileList = fileNames
+      .filter(fileName => /\.html$/.test(fileName))
+      .map(fileName => path.join(dirPath, fileName))
+    return fileList
+  }))).flat()
+
+  const indexEntries = files.map(filePath => {
+    const name = path.basename(filePath, '.html')
+    return [name, filePath]
+  })
+
+  return new Map(indexEntries)
 }
 
-const parseComponent = text => {
-  const styleNodes = []
-  const templateNodes = []
-
-  const nodeExtractor = () => tree => {
-    const styleTest = (node, _, parent) =>
-      parent === tree && node.tagName === 'style'
-    visit(tree, styleTest, node => styleNodes.push(node))
-
-    const templateTest = (node, _, parent) =>
-      parent === tree && !/(style|script)/i.test(node.tagName)
-    visit(tree, templateTest, node => templateNodes.push(node))
-  }
-
-  unified()
-    .use(nodeExtractor)
-    .runSync(unified()
-      .use(parser, { fragment: true })
-      .parse(text)
-    )
-
-  return {
-    styleNodes,
-    templateNodes,
-  }
-}
-
-const loadComponentFile = async (filePath) => {
-  const fileContents = await fs.readFile(filePath)
-  const { styleNodes, templateNodes } = parseComponent(fileContents)
-
-  const component = (componentNode, index, parent) => {
-    const componentTree = {
-      type: 'root',
-      children: clone(templateNodes),
-      position: componentNode.position,
-    }
-
-    const { properties = {} } = componentNode
-    const slots = componentNode.children.reduce((map, child) => {
-      const name = properties?.slot ?? DEFAULT_SLOT
-      if (!map.has(name)) map.set(name, [])
-      map.get(name).push(child)
-      return map
-    }, new Map())
-
-    const transformedTree = unified()
-      .use(() => tree => {
-        visit(tree, node => node.tagName === 'slot', (slotNode, slotNodeIndex, slotParent) => {
-          const name = slotNode.properties?.name ?? DEFAULT_SLOT
-          const replacement = slots.get(name) ?? slotNode.children ?? []
-          slotParent.children.splice(slotNodeIndex, 1, ...replacement)
-        })
-      })
-      .runSync(componentTree)
-
-    return transformedTree.children
-  }
-
-  return component
-}
-
-const transform = (tree, componentsCache) => {
-  for (const [componentName, component] of componentsCache.entries()) {
-    const test = node =>
-      node.type === 'element' &&
-      node.tagName === componentName
-
-    const visitor = (node, index, parent) => {
-      const replacement = component(node, index, parent)
-      const replacementNodes = Array.isArray(replacement)
-        ? replacement
-        : [replacement]
-
-      parent.children.splice(index, 1, ...replacementNodes)
-    }
-
-    visit(tree, test, visitor)
-  }
-}
-
-const plugin = (options = {}) => {
+const attach = (options = {}) => {
   const {
     loadPaths = [],
   } = options
 
-  const componentsCache = new Map()
+  const transform = async tree => {
+    const componentsIndex = await indexComponents(...loadPaths)
+    const asyncUpdates = []
 
-  return async tree => {
-    // Components must be preloaded and cached because
-    // visitors do not support promises
-    const componentsLoader = loadPaths
-      .map(filePath => path.resolve(filePath))
-      .map(filePath => loadComponents(filePath, componentsCache))
-    await Promise.allSettled(componentsLoader)
+    const test = node => componentsIndex.has(node.tagName)
 
-    return transform(tree, componentsCache)
+    const visitor = (node, index, parent) => {
+      const componentPath = componentsIndex.get(node.tagName)
+      const update = loadComponent(componentPath)
+        .then(component => component(node, index, parent))
+        .then(replacement => {
+          const replacementNodes = Array.isArray(replacement)
+            ? replacement
+            : [replacement]
+
+          parent.children.splice(index, 1, ...replacementNodes)
+        })
+
+      asyncUpdates.push(update)
+    }
+
+    visit(tree, test, visitor)
+
+    await Promise.all(asyncUpdates)
   }
+
+  return transform
 }
 
-export default plugin
+export default attach
