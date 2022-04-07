@@ -7,8 +7,7 @@ import parser from 'rehype-parse'
 import formatter from 'rehype-format'
 import stringifier from 'rehype-stringify'
 import Template from './template.js'
-
-const DEFAULT_SLOT = Symbol('default')
+import Script from './script.js'
 
 const split = nodeList => {
   const sortedNodes = [[], [], []]
@@ -46,12 +45,15 @@ const parse = text => {
 
 const load = async (filePath) => {
   const fileContents = await fs.readFile(filePath)
-  const { templateNodes } = parse(fileContents)
+  const { setupScript, templateNodes } = parse(fileContents)
 
   const template = new Template(templateNodes)
+  const setup = new Script(setupScript)
 
   const component = async (hostTree, index, parent) => {
-    const shadowTree = await template.render(hostTree)
+    const preparedTree = await setup.run(hostTree)
+    console.log(hostTree.properties)
+    const shadowTree = await template.render(preparedTree ?? hostTree)
     return shadowTree.children
   }
 
