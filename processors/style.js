@@ -22,7 +22,7 @@ class Style {
   }
 
   get source() {
-    return this.sourceNode.children?.[0]?.value ?? ''
+    return this.sourceNode.children?.[0]?.value
   }
 
   get result() {
@@ -30,6 +30,13 @@ class Style {
   }
 
   compile() {
+    if (typeof this.source != 'string') {
+      this.module = {}
+      this.resultNode = clone(this.sourceNode)
+      delete this.resultNode.properties.scoped
+      return
+    }
+
     const cssModulesPlugin = postcssModules({
       ...this.options,
       getJSON: (_, cssModule) => {
@@ -43,6 +50,7 @@ class Style {
       .then(({ css }) => {
         this.resultNode = clone(this.sourceNode)
         this.resultNode.children[0].value = css
+        delete this.resultNode.properties.scoped
       })
   }
 
