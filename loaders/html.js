@@ -10,9 +10,10 @@ import stringifier from 'rehype-stringify'
 const DEFAULT_SLOT = Symbol('default')
 
 const trim = nodeList => {
-  const test = ({ type, value }) => type === 'element' || /^\s*$/gi.test(value)
+  const test = ({ type, value }) => type === 'element' || !/^\s*$/gi.test(value)
   const start = nodeList.findIndex(test)
-  const end = nodeList.findIndexLast(test)
+  // findIndexLast is missing
+  const end = (nodeList.length - 1) - [...nodeList].reverse().findIndex(test)
   return nodeList.slice(start, end + 1)
 }
 
@@ -28,8 +29,15 @@ const split = nodeList => {
   const [scriptNodes, styleNodes] = sortedNodes
   const templateNodes = trim(sortedNodes[2])
 
-  // const setupScript = scriptNodes.findLast()
+  // TODO: Subject of discussion
+  // It's supposed to be a custom hook before template substitution
+  // but this is different from what Vue or Svelte does
+  const setupScript = scriptNodes
+    .reverse()
+    .find(({ properties }) => properties.setup != null)
+
   return {
+    setupScript,
     scriptNodes,
     styleNodes,
     templateNodes,
@@ -37,30 +45,11 @@ const split = nodeList => {
 }
 
 const parse = text => {
-  const styleNodes = []
-  const templateNodes = []
+  const componentTree = unified()
+    .use(parser, { fragment: true })
+    .parse(text)
 
-  const nodeExtractor = () => tree => {
-    const styleTest = (node, _, parent) =>
-      parent === tree && node.tagName === 'style'
-    visit(tree, styleTest, node => styleNodes.push(node))
-
-    const templateTest = (node, _, parent) =>
-      parent === tree && !/(style|script)/i.test(node.tagName)
-    visit(tree, templateTest, node => templateNodes.push(node))
-  }
-
-  unified()
-    .use(nodeExtractor)
-    .runSync(unified()
-      .use(parser, { fragment: true })
-      .parse(text)
-    )
-
-  return {
-    styleNodes,
-    templateNodes,
-  }
+  return split(componentTree.children)
 }
 
 const load = async (filePath) => {
