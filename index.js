@@ -7,21 +7,29 @@ import { visit } from 'unist-util-visit'
 import parser from 'rehype-parse'
 import formatter from 'rehype-format'
 import stringifier from 'rehype-stringify'
-import { singleFile as loadSingleFileComponent } from './processors/index.js'
+import { singleFile, jsFile } from './processors/index.js'
 
-const loadComponent = memoize(loadSingleFileComponent)
+const loadComponent = memoize((filePath) => {
+  const type = path.extname(filePath).slice(1)
+  const loader = {
+    html: singleFile,
+    js: jsFile,
+  }[type]
+
+  return loader(filePath)
+})
 
 const indexComponents = async (...paths) => {
   const files = (await Promise.all(paths.map(async dirPath => {
     const fileNames = await fs.readdir(dirPath)
     const fileList = fileNames
-      .filter(fileName => /\.html$/.test(fileName))
+      .filter(fileName => /\.(html|js)$/.test(fileName))
       .map(fileName => path.join(dirPath, fileName))
     return fileList
   }))).flat()
 
   const indexEntries = files.map(filePath => {
-    const name = path.basename(filePath, '.html')
+    const name = path.basename(filePath).replace(/\.(html|js)$/, '')
     return [name, filePath]
   })
 
