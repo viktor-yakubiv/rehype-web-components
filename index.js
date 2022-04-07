@@ -43,6 +43,7 @@ const attach = (options = {}) => {
 
   const transform = async tree => {
     const componentsIndex = await indexComponents(...loadPaths)
+
     const asyncUpdates = []
 
     const test = node => componentsIndex.has(node.tagName)
@@ -62,9 +63,11 @@ const attach = (options = {}) => {
       asyncUpdates.push(update)
     }
 
-    visit(tree, test, visitor)
-
-    await Promise.all(asyncUpdates)
+    do {
+      asyncUpdates.length = 0
+      visit(tree, test, visitor)
+      await Promise.all(asyncUpdates)
+    } while (asyncUpdates.length > 0)
   }
 
   return transform
