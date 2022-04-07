@@ -7,9 +7,9 @@ import { visit } from 'unist-util-visit'
 import parser from 'rehype-parse'
 import formatter from 'rehype-format'
 import stringifier from 'rehype-stringify'
-import { html as loadHtmlComponent } from './loaders/index.js'
+import { singleFile as loadSingleFileComponent } from './processors/index.js'
 
-const loadComponent = memoize(loadHtmlComponent)
+const loadComponent = memoize(loadSingleFileComponent)
 
 const indexComponents = async (...paths) => {
   const files = (await Promise.all(paths.map(async dirPath => {
