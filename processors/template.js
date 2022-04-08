@@ -50,45 +50,70 @@ const hasValue = node => {
 
 // TODO: Consider using lodash.template instead
 //       It has some downsides, it's basically an overkill
-// TODO: Find an appropriate name for this function
-const substituteTemplateString = (text, values) => {
-  const placeholders = text.match(new RegExp(valueTest, 'g')) ?? []
+const substituteValues = values => shadowTree => {
+  const usedValues = new Set()
 
-  const substitutions = placeholders.map(occurance => {
-    const { name } = occurance.match(valueTest).groups
+  const substitude = text => {
+    const placeholders = text.match(new RegExp(valueTest, 'g')) ?? []
 
-    // TODO: Consider removing props if null explicitly passed
-    //       This might be a rare case as this requires JS,
-    //       i.e. HTML itself does not offer any option to pass not a string
-    const value = Object.hasOwn(values, name)
-      ? values[name] ?? ''
-      : occurance
+    const substitutions = placeholders.map(occurance => {
+      const { name } = occurance.match(valueTest).groups
+      usedValues.add(name)
 
-    return [occurance, value]
-  })
+      const value = Object.hasOwn(values, name)
+        ? values[name]
+        : occurance
 
-  return substitutions.reduce((str, [occurance, replacement]) =>
-    str.replace(new RegExp(occurance, 'g'), replacement), text)
-}
+      return [occurance, value]
+    })
 
-const substituteValues = values => shadowTree =>
+    // Handles returning null when thee property is set purely to match another
+    if (substitutions.length === 1 && text === substitutions[0][0]) {
+      return substitutions[0][1]
+    }
+
+    return substitutions.reduce(
+      (str, [occurance, replacement]) =>
+        str.replaceAll(occurance, replacement ?? ''),
+      text,
+    )
+
+    return result
+  }
+
   visit(shadowTree, hasValue, node => {
     if (node.properties != null) {
       const processedPropEntries = Object.entries(node.properties)
-        // className is an array, inconvenient to process
-        .filter(([name]) => name !== 'className')
-        .map(([name, propValue]) => [
-          name,
-          substituteTemplateString(propValue, values),
-        ])
+        .map(([propName, propValue]) => {
+          // className and some others
+          if (Array.isArray(propValue)) {
+            return [
+              propName,
+              propValue.map(substitude).filter(newValue => newValue != null)]
+          }
 
-      Object.assign(node.properties, Object.fromEntries(processedPropEntries))
+          return [propName, substitude(propValue)]
+        })
+        .filter(([propName, newValue]) => newValue != null)
+
+      node.properties = Object.fromEntries(processedPropEntries)
     }
 
     if (node.value != null) {
-      node.value = substituteTemplateString(node.value, values)
+      node.value = substitude(node.value) ?? ''
     }
   })
+
+  if (shadowTree.children.length === 1) {
+    const passProps = Object.fromEntries(
+      Object.entries(values)
+      .filter(([name, value]) => !usedValues.has(name) && value != null)
+    )
+
+    const shadowChild = shadowTree.children[0]
+    shadowChild.properties = Object.assign(shadowChild.properties ?? {}, passProps)
+  }
+}
 
 
 /**
