@@ -37,7 +37,7 @@ const substituteSlots = slots => shadowTree =>
  * Values
  */
 
-const valueTest = /\{\s*(?<name>\w+)\s*\}/
+const valueTest = /\{(?<name>\w+)\}/
 
 const hasValue = node => {
   const text = [
