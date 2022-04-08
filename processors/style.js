@@ -12,8 +12,9 @@ const applyModule = cssModule => tree => visit(tree, hasClassName, node => {
 })
 
 class Style {
-  constructor(node) {
+  constructor(node, file) {
     this.sourceNode = node
+    this.file = file
     this.options = {
       scopeBehaviour:
         // Despite it's deprecated, it's handy here

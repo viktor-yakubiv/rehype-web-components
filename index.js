@@ -1,23 +1,18 @@
 import { promises as fs } from 'fs'
 import path from 'path'
-import clone from 'lodash.clonedeep'
-import memoize from 'lodash.memoize'
-import { unified } from 'unified'
 import { visit } from 'unist-util-visit'
-import parser from 'rehype-parse'
-import formatter from 'rehype-format'
-import stringifier from 'rehype-stringify'
-import { singleFile, jsFile } from './processors/index.js'
+import DeclarativeComponent from './processors/declarative-component.js'
+import ScriptComponent from './processors/script-component.js'
 
-const loadComponent = memoize((filePath) => {
+const createComponent = filePath => {
   const type = path.extname(filePath).slice(1)
-  const loader = {
-    html: singleFile,
-    js: jsFile,
+  const Component = {
+    html: DeclarativeComponent,
+    js: ScriptComponent,
   }[type]
 
-  return loader(filePath)
-})
+  return new Component(filePath)
+}
 
 const indexComponents = async (...paths) => {
   const files = (await Promise.all(paths.map(async dirPath => {
@@ -30,7 +25,8 @@ const indexComponents = async (...paths) => {
 
   const indexEntries = files.map(filePath => {
     const name = path.basename(filePath).replace(/\.(html|js)$/, '')
-    return [name, filePath]
+    const component = createComponent(path.resolve(filePath))
+    return [name, component]
   })
 
   return new Map(indexEntries)
@@ -49,9 +45,8 @@ const attach = (options = {}) => {
     const test = node => componentsIndex.has(node.tagName)
 
     const visitor = (node, index, parent) => {
-      const componentPath = componentsIndex.get(node.tagName)
-      const update = loadComponent(componentPath)
-        .then(component => component(node, index, parent))
+      const component = componentsIndex.get(node.tagName)
+      const update = component.render(node)
         .then(replacement => {
           const replacementNodes = Array.isArray(replacement)
             ? replacement
