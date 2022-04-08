@@ -37,7 +37,7 @@ const attach = (options = {}) => {
     loadPaths = [],
   } = options
 
-  const transform = async tree => {
+  const transform = async (tree, file) => {
     const componentsIndex = await indexComponents(...loadPaths)
 
     const asyncUpdates = []
@@ -46,7 +46,7 @@ const attach = (options = {}) => {
 
     const visitor = (node, index, parent) => {
       const component = componentsIndex.get(node.tagName)
-      const update = component.render(node)
+      const update = component.render(node, file)
         .then(replacement => {
           const replacementNodes = Array.isArray(replacement)
             ? replacement

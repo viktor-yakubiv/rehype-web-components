@@ -12,9 +12,9 @@ const applyModule = cssModule => tree => visit(tree, hasClassName, node => {
 })
 
 class Style {
-  constructor(node, file) {
+  constructor(node, { sourcePath } = {}) {
     this.sourceNode = node
-    this.file = file
+    this.sourcePath = sourcePath
     this.options = {
       scopeBehaviour:
         // Despite it's deprecated, it's handy here
@@ -46,8 +46,7 @@ class Style {
     })
 
     return postcss([cssModulesPlugin])
-      // TODO: Find a way to provide `from` and `to` options
-      .process(this.source)
+      .process(this.source, { from: this.sourcePath })
       .then(({ css }) => {
         this.resultNode = clone(this.sourceNode)
         this.resultNode.children[0].value = css

@@ -67,7 +67,9 @@ class DeclarativeComponent extends Component {
     this.file = result.file
     this.setupScript = setupScript != null ? new Script(setupScript) : null
     this.template = new Template(templateNodes)
-    this.styles = styleNodes.map(node => new Style(node, this.file))
+    this.styles = styleNodes.map(node => new Style(node, {
+      sourcePath: this.file.history[this.file.history.length - 1],
+    }))
   }
 
   async setup(hostTree) {
