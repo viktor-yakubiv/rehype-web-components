@@ -30,7 +30,7 @@ class Style {
     return this.resultNode?.children?.[0]?.value
   }
 
-  compile() {
+  async compile() {
     if (typeof this.source != 'string') {
       this.module = {}
       this.resultNode = clone(this.sourceNode)
@@ -40,18 +40,28 @@ class Style {
 
     const cssModulesPlugin = postcssModules({
       ...this.options,
-      getJSON: (_, cssModule) => {
-        this.module = cssModule
-      },
+      getJSON: () => {},
     })
 
-    return postcss([cssModulesPlugin])
+    const cssProcessor = postcss([cssModulesPlugin])
+    const result = await cssProcessor
       .process(this.source, { from: this.sourcePath })
-      .then(({ css }) => {
-        this.resultNode = clone(this.sourceNode)
-        this.resultNode.children[0].value = css
-        delete this.resultNode.properties.scoped
-      })
+
+    this.resultNode = clone(this.sourceNode)
+    this.resultNode.children[0].value = result.css
+    delete this.resultNode.properties.scoped
+
+    const cssModule = result.messages
+      .find(({ type, plugin }) => type === 'export' &&
+        plugin === 'postcss-modules')?.exportTokens ?? {}
+    this.module = cssModule
+
+    // For some reason components receive undefined processing result
+    // despite it's awaited. No undefined result could be logged from this
+    // method though.
+    //
+    // I've got tired from debugging this; 100ms wait works
+    return new Promise(resolve => setTimeout(resolve, 100))
   }
 
   attach(tree) {
