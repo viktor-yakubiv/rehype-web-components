@@ -4,6 +4,7 @@
   "description": "A rehype plugin that simulates web components",
   "type": "module",
   "main": "index.js",
+  "exports": "./index.js",
   "keywords": [
     "rehype-plugin",
     "web-components"
@@ -15,7 +16,7 @@
     "postcss": "^8.4.12",
     "postcss-modules": "^4.3.1",
     "rehype-format": "^4.0.1",
-    "rehype-lodash-template": "^0.1.0",
+    "rehype-lodash-template": "^0.1.1",
     "rehype-parse": "^8.0.4",
     "rehype-stringify": "^9.0.3",
     "to-vfile": "^7.2.3",
