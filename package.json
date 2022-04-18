@@ -15,6 +15,7 @@
     "postcss": "^8.4.12",
     "postcss-modules": "^4.3.1",
     "rehype-format": "^4.0.1",
+    "rehype-lodash-template": "^0.1.0",
     "rehype-parse": "^8.0.4",
     "rehype-stringify": "^9.0.3",
     "to-vfile": "^7.2.3",
