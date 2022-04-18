@@ -49,6 +49,39 @@ const hasValue = node => {
   return valueTest.test(text)
 }
 
+/**
+ * Properties pass
+ */
+
+const passProperties = properties => tree => {
+  if (tree.children.length !== 1) return tree
+  if (tree.children[0].type != 'element') return tree
+
+  const templateRoot = tree.children[0]
+
+  const hostClassName = properties?.className ?? []
+  const templateClassName = templateRoot.properties?.className ?? []
+  const className = [
+    ...templateClassName,
+    ...hostClassName,
+  ]
+
+  if (className.length > 0) {
+    templateRoot.properties.className = className
+  }
+
+  const hostStyle = properties?.style ?? ''
+  const templateStyle = templateRoot.properties?.style ?? ''
+  const [conjunction] = templateStyle.match(/;\s*$/g) ?? ['; ']
+  const style = [
+    templateStyle.replace(/;\s*$/, ''),
+    hostStyle,
+  ].filter(Boolean).join(conjunction)
+
+  if (style) {
+    templateRoot.properties.style = style
+  }
+}
 
 /**
  * API class
@@ -73,6 +106,7 @@ class Template {
     return unified()
       .use(substituteSlots, slots)
       .use(substituteValues, { values: properties })
+      .use(passProperties, properties)
       .use(appendPosition, hostTree.position)
       .run(shadowTree)
   }
