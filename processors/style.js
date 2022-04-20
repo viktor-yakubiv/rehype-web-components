@@ -39,8 +39,9 @@ class Style {
     }
 
     const cssModulesPlugin = postcssModules({
-      ...this.options,
+      generateScopedName: '[name]-[local]',
       getJSON: () => {},
+      ...this.options,
     })
 
     const cssProcessor = postcss([cssModulesPlugin])
