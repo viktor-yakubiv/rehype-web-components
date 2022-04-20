@@ -3,7 +3,7 @@ import substituteValues from 'rehype-lodash-template'
 import { unified } from 'unified'
 import { visit } from 'unist-util-visit'
 
-const DEFAULT_SLOT = Symbol('default')
+const DEFAULT_SLOT = ''
 
 const trim = nodeList => {
   const test = ({ type, value }) => type === 'element' || !/^\s*$/gi.test(value)
