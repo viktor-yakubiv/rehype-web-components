@@ -1,71 +1,61 @@
-import { promises as fs } from 'fs'
-import path from 'path'
-import { visit } from 'unist-util-visit'
-import DeclarativeComponent from './processors/declarative-component.js'
-import ScriptComponent from './processors/script-component.js'
+import castArray from 'lodash.castarray'
+import { is } from 'unist-util-is'
+import { visitParents as visit, SKIP } from 'unist-util-visit-parents'
+import { isElement } from 'hast-util-is-element'
+import indexComponents from './lib/index-components.js'
 
-const createComponent = filePath => {
-  const type = path.extname(filePath).slice(1)
-  const Component = {
-    html: DeclarativeComponent,
-    js: ScriptComponent,
-  }[type]
+const unwrap = node => castArray(is(node, 'root') ? node.children : node)
+const wrap = thing => is(thing, 'root')
+  ? thing
+  : { type: 'root', children: castArray(thing) }
 
-  return new Component(filePath)
-}
+const attach = ({
+  fragments: keepFragments = true,
+  ...indexerOptions
+} = {}) => async (tree, file) => {
+  const componentsIndex = await indexComponents(indexerOptions)
 
-const indexComponents = async (...paths) => {
-  const files = (await Promise.all(paths.map(async dirPath => {
-    const fileNames = await fs.readdir(dirPath)
-    const fileList = fileNames
-      .filter(fileName => /\.(html|js)$/.test(fileName))
-      .map(fileName => path.join(dirPath, fileName))
-    return fileList
-  }))).flat()
+  const isRegisteredComponent = node => isElement(node) &&
+    componentsIndex.has(node.tagName)
 
-  const indexEntries = files.map(filePath => {
-    const name = path.basename(filePath).replace(/\.(html|js)$/, '')
-    const component = createComponent(path.resolve(filePath))
-    return [name, component]
-  })
-
-  return new Map(indexEntries)
-}
-
-const attach = (options = {}) => {
-  const {
-    loadPaths = [],
-  } = options
-
-  const transform = async (tree, file) => {
-    const componentsIndex = await indexComponents(...loadPaths)
-
+  const transform = async (subtree, subtreeParent) => {
     const asyncUpdates = []
 
-    const test = node => componentsIndex.has(node.tagName)
-
-    const visitor = (node, index, parent) => {
+    visit(subtree, isRegisteredComponent, (node, ancestors) => {
+      const parent = ancestors[ancestors.length - 1] ?? subtreeParent
       const component = componentsIndex.get(node.tagName)
-      const update = component.render(node, file)
-        .then(replacement => {
-          const replacementNodes = Array.isArray(replacement)
-            ? replacement
-            : [replacement]
 
-          parent.children.splice(index, 1, ...replacementNodes)
+      const update = component.call(null, node, file)
+
+        // a component could modify the tree in place and return nothing
+        // or could return a fragment 'root' node or a regular one
+        .then(result => {
+          const nextSubtree = wrap(result == null ? node : result)
+          return transform(nextSubtree, parent)
+        })
+
+        // for some reason `transform()` does not return tree 🤔
+        .then(result => {
+          const transformedSubtree = unwrap(result == null ? node : result)
+          const nodeList = castArray(transformedSubtree)
+
+          // the index must be searched just before replacing
+          // because of unpredictable asynchronous list shifts
+          const index = parent.children.indexOf(node)
+          parent.children.splice(index, 1, ...nodeList)
+
+          return nodeList
         })
 
       asyncUpdates.push(update)
-    }
+      return SKIP
+    })
 
-    do {
-      asyncUpdates.length = 0
-      visit(tree, test, visitor)
-      await Promise.all(asyncUpdates)
-    } while (asyncUpdates.length > 0)
+    await Promise.all(asyncUpdates)
+    return subtree
   }
 
-  return transform
+  await transform(tree)
 }
 
 export default attach
