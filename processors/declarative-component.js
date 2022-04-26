@@ -1,8 +1,5 @@
-import { VFile } from 'vfile'
 import { toVFile, read } from 'to-vfile'
-import clone from 'lodash.clonedeep'
 import { unified } from 'unified'
-import { visit } from 'unist-util-visit'
 import parser from 'rehype-parse'
 import Component from './component.js'
 import Template from './template.js'

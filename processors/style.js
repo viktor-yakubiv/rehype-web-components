@@ -62,6 +62,7 @@ class Style {
     // method though.
     //
     // I've got tired from debugging this; 100ms wait works
+    // eslint-disable-next-line no-undef -- just want to avoid browser env
     return new Promise(resolve => setTimeout(resolve, 100))
   }
 
