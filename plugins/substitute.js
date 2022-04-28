@@ -1,4 +1,5 @@
 import { visitParents as visit } from 'unist-util-visit-parents'
+import { isElement } from 'hast-util-is-element'
 
 const unifyQuery = (value, fallback) => {
   if (value === false) return 'none'
@@ -13,7 +14,7 @@ const attach = ({
   values: globalContext,
   context: contextQuery = 'none',
   missing: missingValueFlag = 'omit', // 'keep' or 'throw'
-  interpolate = /\$\{([\s\S]+?)\}/,
+  interpolate = /\$?\{([\s\S]+?)\}/,
 } = {}) => {
   if (unifyQuery(contextQuery) === 'none' && globalContext == null) {
     throw new Error('You must pass values when context inferring is disabled')
@@ -64,7 +65,11 @@ const attach = ({
       )
     }
 
-    visit(tree, hasValue, node => {
+    visit(tree, hasValue, (node, ancestors) => {
+      if (ancestors.some(node => isElement(node, ['script', 'style']))) {
+        return
+      }
+
       if (node.properties != null) {
         const processedPropEntries = Object.entries(node.properties)
           .map(([propName, propValue]) => {
