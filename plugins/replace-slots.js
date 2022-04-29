@@ -27,7 +27,7 @@ const findContext = (ancestors, query, fallback = {}) => {
 const attach = ({
   values: globalContext,
   context: contextQuery = 'none',
-  fragments = false,
+  fragments = true,
 }) => {
   if (unifyQuery(contextQuery) === 'none' && globalContext == null) {
     throw new Error('You must pass values when context inferring is disabled')
