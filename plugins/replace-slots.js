@@ -41,6 +41,11 @@ const attach = ({
       const context = findContext(allAncestors, contextQuery, globalContext)
       const value = castArray(context[name] ?? node.children ?? [])
 
+      // The slot must be converted to a fragment instead of unwrapping contents
+      // as it could be passed down again to another slot with a different
+      // name (or without name) what could lead to a data loss after parsing.
+      // The data loss could happen because of slot attribute preserved
+      // in the tree what seems to be expected behavior.
       Object.assign(node, fragment(node, value))
     })
   }
