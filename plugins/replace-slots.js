@@ -1,6 +1,7 @@
 import castArray from 'lodash.castarray'
 import { visitParents as visit } from 'unist-util-visit-parents'
 import { isElement } from 'hast-util-is-element'
+import fragment from '../utils/fragment.js'
 import { defaultSlotName } from './parse-slots.js'
 
 const hasSlotsData = node => node.data?.slots != null
@@ -27,7 +28,6 @@ const findContext = (ancestors, query, fallback = {}) => {
 const attach = ({
   values: globalContext,
   context: contextQuery = 'none',
-  fragments = true,
 }) => {
   if (unifyQuery(contextQuery) === 'none' && globalContext == null) {
     throw new Error('You must pass values when context inferring is disabled')
@@ -41,14 +41,7 @@ const attach = ({
       const context = findContext(allAncestors, contextQuery, globalContext)
       const value = castArray(context[name] ?? node.children ?? [])
 
-      if (fragments) {
-        node.type = 'root'
-        node.children = value
-      } else {
-        const parent = ancestors[ancestors.length - 1]
-        const index = parent.children.indexOf(node)
-        parent.children.splice(index, 1, ...value)
-      }
+      Object.assign(node, fragment(node, value))
     })
   }
 

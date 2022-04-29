@@ -3,14 +3,12 @@ import { is } from 'unist-util-is'
 import { visitParents as visit, SKIP } from 'unist-util-visit-parents'
 import { isElement } from 'hast-util-is-element'
 import indexComponents from './lib/index-components.js'
-
-const unwrap = node => castArray(is(node, 'root') ? node.children : node)
-const wrap = thing => is(thing, 'root')
-  ? thing
-  : { type: 'root', children: castArray(thing) }
+import fragment from './utils/fragment.js'
+import defragment from './utils/defragment.js'
+import normalize from './utils/normalize.js'
 
 const attach = ({
-  fragments: keepFragments = true,
+  fragments: keepFragments = false,
   ...indexerOptions
 } = {}) => async (tree, file) => {
   const componentsIndex = await indexComponents(indexerOptions)
@@ -29,14 +27,22 @@ const attach = ({
 
         // a component could modify the tree in place and return nothing
         // or could return a fragment 'root' node or a regular one
+        // in any case it is converted to fragment and passed down
         .then(result => {
-          const nextSubtree = wrap(result == null ? node : result)
+          const fragmentBase = result == null || !is(result, 'root')
+            ? node
+            : result
+          const fragmentChildren = fragmentBase === result
+            ? fragmentBase.children
+            : result ?? node.children
+
+          const nextSubtree = fragment(fragmentBase, castArray(fragmentChildren))
           return transform(nextSubtree, parent)
         })
 
         // for some reason `transform()` does not return tree 🤔
         .then(result => {
-          const transformedSubtree = unwrap(result == null ? node : result)
+          const transformedSubtree = result == null ? node : result
           const nodeList = castArray(transformedSubtree)
 
           // the index must be searched just before replacing
@@ -56,6 +62,12 @@ const attach = ({
   }
 
   await transform(tree)
+
+  if (!keepFragments) {
+    defragment(tree)
+  }
+
+  normalize(tree)
 }
 
 export default attach
