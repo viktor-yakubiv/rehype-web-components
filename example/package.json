@@ -1,0 +1,10 @@
+{
+  "name": "rehype-web-components-example",
+  "devDependencies": {
+    "rehype-cli": "^11.0.1",
+    "rehype-web-components": "file:.."
+  },
+  "scripts": {
+    "build": "rehype index.html -o index.compiled.html"
+  }
+}

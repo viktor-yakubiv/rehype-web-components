@@ -1,0 +1,30 @@
+<script setup>
+  const dateFormat = new Intl.DateTimeFormat('en')
+
+  properties.dateTimeFormatted = properties.dateTime
+    ? dateFormat.format(new Date(properties.dateTime))
+    : ''
+</script>
+
+<article class="container block">
+  <header>
+    <my-title>
+      <slot name="title">Untitled</slot>
+    </my-title>
+
+    <time datetime={dateTime}>{dateTimeFormatted}</time>
+  </header>
+
+  <slot></slot>
+</article>
+
+<style module>
+  .container {
+    max-inline-size: 65ch;
+    margin-inline: auto;
+  }
+
+  .block {
+    padding: 1rem;
+  }
+</style>
